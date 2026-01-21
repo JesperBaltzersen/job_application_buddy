@@ -145,17 +145,15 @@ export default function KeywordsPanel({
                     >
                       <Copy className="h-3 w-3" />
                     </Button>
-                    {keyword.isManuallyAdded && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => handleRemoveKeyword(keyword._id)}
-                        title="Remove keyword"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => handleRemoveKeyword(keyword._id)}
+                      title="Delete keyword"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
                   </div>
                 </div>
               );
