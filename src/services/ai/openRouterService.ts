@@ -236,6 +236,125 @@ Return ONLY a JSON object with a single boolean field "matches", nothing else.`;
     
     return false;
   }
+
+  /**
+   * Process PDF file using LLM to extract text content
+   */
+  async processPDF(pdfFile: File): Promise<string> {
+    const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
+    
+    if (!apiKey) {
+      throw new Error("OpenRouter API key is required to process PDFs");
+    }
+
+    try {
+      // Convert PDF to images (first page for now, can be extended)
+      const imageBase64 = await this.pdfToImage(pdfFile);
+
+      // Use a vision-capable model to extract text
+      const systemPrompt = `You are an expert at extracting text from images. 
+Extract ALL text content from the provided PDF page image. 
+Return ONLY the extracted text, preserving the original formatting and structure as much as possible. 
+Do not add any commentary or interpretation, just the raw text.`;
+
+      // Send to vision-capable model (using GPT-4 Vision or similar)
+      const baseUrl = "https://openrouter.ai/api/v1";
+      const endpoint = `${baseUrl}/chat/completions`;
+      
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+          "HTTP-Referer": window.location.origin,
+          "X-Title": "Resume Buddy",
+        },
+        body: JSON.stringify({
+          model: "openai/gpt-4o", // Vision-capable model
+          messages: [
+            {
+              role: "system",
+              content: systemPrompt,
+            },
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: "Extract all text from this PDF page image.",
+                },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: `data:image/png;base64,${imageBase64}`,
+                  },
+                },
+              ],
+            },
+          ],
+          temperature: 0.1,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "");
+        throw new Error(`Failed to process PDF: ${response.status} ${errorText}`);
+      }
+
+      const json = (await response.json()) as any;
+      const extractedText = json?.choices?.[0]?.message?.content;
+
+      if (!extractedText || typeof extractedText !== "string") {
+        throw new Error("Failed to extract text from PDF");
+      }
+
+      return extractedText;
+    } catch (error) {
+      console.error("Error processing PDF:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Convert PDF file to base64 image (first page)
+   */
+  private async pdfToImage(pdfFile: File): Promise<string> {
+    // Use pdf.js to render PDF page to canvas, then convert to base64
+    const arrayBuffer = await pdfFile.arrayBuffer();
+    
+    // Dynamic import of pdfjs-dist
+    const pdfjsLib = await import("pdfjs-dist");
+    
+    // Set worker (required for pdf.js) - use Vite's handling
+    if (typeof window !== "undefined") {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+        'pdfjs-dist/build/pdf.worker.min.mjs',
+        import.meta.url
+      ).toString();
+    }
+
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const page = await pdf.getPage(1); // Get first page
+    
+    const viewport = page.getViewport({ scale: 2.0 });
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    
+    if (!context) {
+      throw new Error("Failed to get canvas context");
+    }
+
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
+
+    await page.render({
+      canvasContext: context,
+      viewport: viewport,
+    }).promise;
+
+    // Convert canvas to base64
+    return canvas.toDataURL("image/png").split(",")[1];
+  }
 }
 
 // Export singleton instance

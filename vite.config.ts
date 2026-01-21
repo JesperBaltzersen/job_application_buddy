@@ -14,4 +14,10 @@ export default defineConfig({
       "@/packages/openrouter-client": path.resolve(__dirname, "./packages/openrouter-client/src/index.ts"),
     },
   },
+  optimizeDeps: {
+    exclude: ['pdfjs-dist'],
+  },
+  worker: {
+    format: 'es',
+  },
 })

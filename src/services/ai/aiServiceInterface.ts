@@ -34,4 +34,12 @@ export interface AIService {
    * @returns True if the phrase addresses the keyword
    */
   analyzeKeywordMatch(phrase: string, keyword: string): Promise<boolean>;
+
+  /**
+   * Processes a PDF file using LLM to extract text content.
+   * Converts PDF pages to images and uses vision-capable models to extract text.
+   * @param pdfFile - The PDF file to process
+   * @returns Extracted text content from the PDF
+   */
+  processPDF(pdfFile: File): Promise<string>;
 }
